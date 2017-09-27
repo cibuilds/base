@@ -1,0 +1,49 @@
+workflows:
+  version: 2
+  main:
+    jobs:
+      - build
+      - publish:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+          context: org-global
+
+
+version: 2
+jobs:
+  build:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - setup_docker_engine:
+          reusable: true
+      - run:
+          name: "Build Docker image"
+          command: |
+            docker build -t cibuilds/base:$CIRCLE_SHA1 .
+
+  publish:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - setup_docker_engine:
+          reusable: true
+      - run:
+          name: "Publish images to Docker Hub if neccessary"
+          command: |
+            docker images --format "{{.ID}}" cibuilds/base:$CIRCLE_SHA1 > current_image_id
+
+            # if IDs match, this image already exists and has been pushed so don't do it again
+            if docker images --format "{{.ID}}" cibuilds/base:latest | diff - current_image_id;then
+              echo "The image just built (cibuilds/base:${CIRCLE_SHA1}) is the same as latest (cibuilds/base:latest). So, we're not going to push to Docker Hub."
+              exit
+            fi
+
+            docker login -u  $DOCKER_USER -p $DOCKER_PASS
+            docker tag cibuilds/base:$CIRCLE_SHA1 cibuilds/base:latest
+            docker push cibuilds/base:$CIRCLE_SHA1
+            docker push cibuilds/base:latest
