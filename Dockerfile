@@ -1,4 +1,4 @@
-FROM alpine:3.6
+FROM alpine:3.7
 
 LABEL maintainer="Ricardo N Feliciano (FelicianoTech) <ricardo@feliciano.tech>"
 
@@ -11,3 +11,5 @@ RUN apk add --no-cache \
 	openssh \
 	tar \
 	wget
+
+WORKDIR /root/project
