@@ -32,6 +32,13 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
+          name: "Verify if our previous image is available"
+          command: |
+            if ! docker image inspect cibuilds/base:$CIRCLE_SHA1;  then
+              echo "Previously built image not found for some reason. Building."
+              docker build -t cibuilds/base:$CIRCLE_SHA1 .
+            fi
+      - run:
           name: "Publish images to Docker Hub if neccessary"
           command: |
             docker images --format "{{.ID}}" cibuilds/base:$CIRCLE_SHA1 > current_image_id
