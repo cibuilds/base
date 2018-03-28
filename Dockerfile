@@ -8,6 +8,7 @@ RUN apk add --no-cache \
 	curl \
 	git \
 	gzip \
+	jq \
 	openssh \
 	tar \
 	wget
