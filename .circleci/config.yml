@@ -19,12 +19,9 @@ workflows:
   main:
     jobs:
       - test
-      - publish-edge:
+      - publish-monthly:
           requires:
             - test
-          filters:
-            branches:
-              only: master
           context: org-global
 
 
@@ -65,6 +62,7 @@ jobs:
       - image: docker:stable-git
     steps:
       - checkout
+      - setup_remote_docker
       - run:
           name: "Build Docker Image"
           command: docker build --pull -t cibuilds/base:$CIRCLE_SHA1 .
