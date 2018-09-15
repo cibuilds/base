@@ -1,11 +1,27 @@
 workflows:
   version: 2
+  monthly-release:
+    triggers:
+      - schedule:
+          cron: "0 0 2 * *"
+          filters:
+            branches:
+              only: master
+    jobs:
+      - test
+      - publish-monthly:
+          requires:
+            - test
+          filters:
+            branches:
+              only: master
+          context: org-global
   main:
     jobs:
-      - build
-      - publish:
+      - test
+      - publish-edge:
           requires:
-            - build
+            - test
           filters:
             branches:
               only: master
@@ -14,7 +30,7 @@ workflows:
 
 version: 2
 jobs:
-  build:
+  test:
     docker:
       - image: docker:stable-git
     steps:
@@ -22,10 +38,11 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: "Build Docker image"
+          name: "Make sure Dockerfile Builds"
           command: docker build -t cibuilds/base:$CIRCLE_SHA1 .
+      # We need to run the image and test the tools we pre-install here in the future
 
-  publish:
+  publish-edge:
     docker:
       - image: docker:stable-git
     steps:
@@ -33,25 +50,30 @@ jobs:
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
-          name: "Verify if our previous image is available"
-          command: |
-            if ! docker image inspect cibuilds/base:$CIRCLE_SHA1;  then
-              echo "Previously built image not found for some reason. Building."
-              docker build -t cibuilds/base:$CIRCLE_SHA1 .
-            fi
+          name: "Build Docker Image"
+          command: docker build -t cibuilds/base:$CIRCLE_SHA1 .
       - run:
-          name: "Publish images to Docker Hub if neccessary"
+          name: "Prepare & Publish Image"
           command: |
-            docker images --format "{{.ID}}" cibuilds/base:$CIRCLE_SHA1 > current_image_id
-            [ -s current_image_id ] || echo "n/a" > current_image_id
+            docker tag cibuilds/base:$CIRCLE_SHA1 cibuilds/base:edge
 
-            # if IDs match, this image already exists and has been pushed so don't do it again
-            if docker images --format "{{.ID}}" cibuilds/base:latest | diff - current_image_id;then
-              echo "The image just built (cibuilds/base:${CIRCLE_SHA1}) is the same as latest (cibuilds/base:latest). So, we're not going to push to Docker Hub."
-              exit
-            fi
+            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
+            docker push cibuilds/base
 
-            docker login -u  $DOCKER_USER -p $DOCKER_PASS
+  publish-monthly:
+    docker:
+      - image: docker:stable-git
+    steps:
+      - checkout
+      - run:
+          name: "Build Docker Image"
+          command: docker build --pull -t cibuilds/base:$CIRCLE_SHA1 .
+      - run:
+          name: "Prepare & Publish Image"
+          command: |
+            VERSION=$( date +%Y.%m )
             docker tag cibuilds/base:$CIRCLE_SHA1 cibuilds/base:latest
-            docker push cibuilds/base:$CIRCLE_SHA1
-            docker push cibuilds/base:latest
+            docker tag cibuilds/base:$CIRCLE_SHA1 cibuilds/base:${VERSION}
+
+            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
+            docker push cibuilds/base
