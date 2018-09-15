@@ -19,12 +19,9 @@ workflows:
   main:
     jobs:
       - test
-      - publish-edge:
+      - publish-monthly:
           requires:
             - test
-          filters:
-            branches:
-              only: master
           context: org-global
 
 
