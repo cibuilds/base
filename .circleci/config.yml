@@ -35,8 +35,7 @@ jobs:
       - image: docker:stable-git
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - run:
           name: "Make sure Dockerfile Builds"
           command: docker build -t cibuilds/base:$CIRCLE_SHA1 .
@@ -47,8 +46,7 @@ jobs:
       - image: docker:stable-git
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - run:
           name: "Build Docker Image"
           command: docker build -t cibuilds/base:$CIRCLE_SHA1 .
